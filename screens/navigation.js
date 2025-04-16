@@ -42,7 +42,7 @@ export default function Navigation() {
           {/* Logo */}
           <View>
             <Image
-              source={require('../assets/images/logo.jpg')}
+              source={require('../assets/images/logo.png')}
               style={{
                 width: 100,
                 height: 100,
