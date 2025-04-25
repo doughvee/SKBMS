@@ -61,7 +61,7 @@ const Notification = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Notifications</Text>
+      <Text style={styles.title}>Log Uploads</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#007bff" />
       ) : (

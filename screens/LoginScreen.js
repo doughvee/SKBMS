@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Preferences } from '@capacitor/preferences';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -8,10 +9,20 @@ const LoginScreen = () => {
   const [error, setError] = useState('');
   const navigation = useNavigation();
 
-  const handleLogin = () => {
-  
-    if (email === 'skbmsadmin' && password === 'sierrakilo8600') {
+  useEffect(() => {
+    const checkLogin = async () => {
+      const { value } = await Preferences.get({ key: 'isLoggedIn' });
+      if (value === 'true') {
+        navigation.navigate('MainLayout');
+      }
+    };
+    checkLogin();
+  }, []);
+
+  const handleLogin = async () => {
+    if (email === 'admin' && password === 'dobijan') {
       setError('');
+      await Preferences.set({ key: 'isLoggedIn', value: 'true' });
       navigation.navigate('MainLayout');
     } else {
       setError('Invalid credentials');
@@ -20,9 +31,13 @@ const LoginScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Logo */}
+      <Image
+        source={require('../assets/images/logo.png')} // Make sure the path is correct
+        style={styles.logo}
+      />
 
-      {/* <Text style={styles.title}>SANGGUNIANG KABATAAN BUDGET MANAGEMENT SYSTEM</Text> */}
-
+      {/* Login Inputs */}
       <TextInput
         style={styles.input}
         placeholder="Username"
@@ -38,8 +53,10 @@ const LoginScreen = () => {
         secureTextEntry
       />
 
+      {/* Error Message */}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
+      {/* Login Button */}
       <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
         <Text style={styles.loginText}>Login</Text>
       </TouchableOpacity>
@@ -58,15 +75,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f4f7',
   },
   logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    width: 170,
+    height: 170,
     marginBottom: 25,
-    textAlign: 'center',
+    resizeMode: 'contain',
   },
   input: {
     width: '30%',

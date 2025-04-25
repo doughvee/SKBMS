@@ -6,7 +6,12 @@ import BudgetPlan from '../screens/budgetplan';
 import Dashboard from '../screens/dashboard';
 import Users from './users';
 import Notification from './notification';
+import { Preferences } from '@capacitor/preferences';
 
+const handleLogout = async () => {
+  await Preferences.remove({ key: 'isLoggedIn' });
+  navigation.navigate('LoginScreen');
+};
 
 const Stack = createStackNavigator();
 

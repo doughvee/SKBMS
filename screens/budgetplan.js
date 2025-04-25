@@ -58,46 +58,104 @@ const BudgetPlan = () => {
     setErrors({ ...errors, [name]: false });
   };
 
+  // const handleSubmit = async () => {
+  //   let newErrors = {
+  //     name: !form.name.trim(),
+  //     center: !form.center,
+  //     amount: !form.amount.trim()
+  //   };
+  //   setErrors(newErrors);
+
+  //   if (newErrors.name || newErrors.center || newErrors.amount) {
+  //     setModalMessage('Please fill in all required fields before proceeding.');
+  //     setErrorModalVisible(true);
+  //     return;
+  //   }
+
+  //   const newBudget = {
+  //     name: form.name,
+  //     center: form.center,
+  //     amount: parseFloat(form.amount.replace(/,/g, '')),
+  //     date_created: new Date().toISOString(),
+  //   };
+
+  //   try {
+  //     if (editId !== null) {
+  //       const { error } = await supabase
+  //         .from('budget_plans')
+  //         .update(newBudget)
+  //         .eq('id', editId);
+      
+  //       if (error) throw error;
+      
+  //       setBudgets(budgets.map(b => (b.id === editId ? { ...b, ...newBudget } : b)));
+  //       setEditId(null);
+  //       setCreateModalVisible(false); // <-- close modal after editing
+  //     } else {
+  //       const { data, error } = await supabase
+  //         .from('budget_plans')
+  //         .insert([newBudget])
+  //         .select();
+      
+  //       if (error) throw error;
+      
+  //       setBudgets([...budgets, ...data]);
+  //       setModalMessage('Budget plan successfully added!');
+  //       setErrorModalVisible(true);
+  //     }      
+  //   } catch (error) {
+  //     console.error('Error saving budget:', error.message);
+  //     setModalMessage('An error occurred while saving the budget.');
+  //     setErrorModalVisible(true);
+  //   }
+
+  //   setForm({ name: '', center: '', amount: '' });
+  //   setShowForm(false);
+  // };
+
   const handleSubmit = async () => {
     let newErrors = {
       name: !form.name.trim(),
       center: !form.center,
-      amount: !form.amount.trim()
+      amount: !form.amount.trim(),
     };
     setErrors(newErrors);
-
+  
     if (newErrors.name || newErrors.center || newErrors.amount) {
       setModalMessage('Please fill in all required fields before proceeding.');
       setErrorModalVisible(true);
       return;
     }
-
+  
     const newBudget = {
       name: form.name,
       center: form.center,
       amount: parseFloat(form.amount.replace(/,/g, '')),
       date_created: new Date().toISOString(),
     };
-
+  
     try {
       if (editId !== null) {
+        // Edit existing budget
         const { error } = await supabase
           .from('budget_plans')
           .update(newBudget)
           .eq('id', editId);
-
+  
         if (error) throw error;
-
-        setBudgets(budgets.map(b => (b.id === editId ? { ...b, ...newBudget } : b)));
+  
+        setBudgets(budgets.map((b) => (b.id === editId ? { ...b, ...newBudget } : b)));
         setEditId(null);
+        setCreateModalVisible(false); // Close modal after editing
       } else {
+        // Create new budget
         const { data, error } = await supabase
           .from('budget_plans')
           .insert([newBudget])
           .select();
-
+  
         if (error) throw error;
-
+  
         setBudgets([...budgets, ...data]);
         setModalMessage('Budget plan successfully added!');
         setErrorModalVisible(true);
@@ -107,11 +165,27 @@ const BudgetPlan = () => {
       setModalMessage('An error occurred while saving the budget.');
       setErrorModalVisible(true);
     }
-
+  
     setForm({ name: '', center: '', amount: '' });
     setShowForm(false);
   };
-
+  
+  const openEditModal = (budget) => {
+    setForm({
+      name: budget.name,
+      center: budget.center,
+      amount: budget.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','),
+    });
+    setEditId(budget.id);
+    setCreateModalVisible(true);
+  };
+  
+  const openCreateModal = () => {
+    setForm({ name: '', center: '', amount: '' });
+    setEditId(null);  // Ensure editId is null when creating a new budget
+    setCreateModalVisible(true);
+  };
+  
   const handleDownload = async (budget) => {
     try {
       // Helper: Clean text from non-UTF-8 characters
@@ -141,7 +215,7 @@ const BudgetPlan = () => {
   
       // CSV Headers
       const csvHeaders = [
-        'Item Name', 'Quantity', 'Unit Price', 'Total Amount', 'Receipt Image'
+        'Item Name', 'Quantity', 'Unit Price', 'Total Amount'
       ];
   
       // CSV Content
@@ -159,8 +233,7 @@ const BudgetPlan = () => {
           `"${cleanText(item.item_name)}"`,
           item.quantity || '',
           formatPeso(item.unit_price || 0),
-          formatPeso(item.amount || 0),
-          item.image_url || 'No Image'
+          formatPeso(item.total_amount || 0),
         ])
       ];
   
@@ -217,32 +290,52 @@ const BudgetPlan = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Budget Plans</Text>
-        <Button title="Create" onPress={() => setCreateModalVisible(true)} />
-      </View>
+<View style={styles.header}>
+  <Text style={styles.title}>Budget Plans</Text>
+  <TouchableOpacity onPress={openCreateModal} style={styles.createButton}>
+  <Text style={styles.createButtonText}>Create</Text>
+</TouchableOpacity>
+
+</View>
+
 
       {/* Create Modal */}
       <Modal transparent={true} animationType="slide" visible={isCreateModalVisible} onRequestClose={() => setCreateModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create Budget Plan</Text>
-            <TextInput style={[styles.input, errors.name && styles.errorBorder]} placeholder="Budget Name" value={form.name} onChangeText={(text) => handleChange('name', text)} />
-            <Picker selectedValue={form.center} style={[styles.input, errors.center && styles.errorBorder]} onValueChange={(itemValue) => handleChange('center', itemValue)}>
-              <Picker.Item label="Select Center of Participation" value="" />
-              {centers.map((center, index) => (
-                <Picker.Item key={index} label={center} value={center} />
-              ))}
-            </Picker>
-            <TextInput style={[styles.input, errors.amount && styles.errorBorder]} placeholder="Amount" keyboardType="numeric" value={form.amount} onChangeText={(text) => handleChange('amount', text)} />
-            <View style={styles.buttonContainer}>
-              <Button title={editId ? 'Update Budget' : 'Add Budget'} onPress={handleSubmit} />
-              <View style={{ width: 20 }} />
-              <Button title="Cancel" onPress={() => setCreateModalVisible(false)} color="red" />
-            </View>
-          </View>
-        </View>
-      </Modal>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContent}>
+      <Text style={styles.modalTitle}>{editId ? 'Edit Budget Plan' : 'Create Budget Plan'}</Text>
+      <TextInput
+        style={[styles.input, errors.name && styles.errorBorder]}
+        placeholder="Budget Name"
+        value={form.name}
+        onChangeText={(text) => handleChange('name', text)}
+      />
+      <Picker
+        selectedValue={form.center}
+        style={[styles.input, errors.center && styles.errorBorder]}
+        onValueChange={(itemValue) => handleChange('center', itemValue)}
+      >
+        <Picker.Item label="Select Center of Participation" value="" />
+        {centers.map((center, index) => (
+          <Picker.Item key={index} label={center} value={center} />
+        ))}
+      </Picker>
+      <TextInput
+        style={[styles.input, errors.amount && styles.errorBorder]}
+        placeholder="Amount"
+        keyboardType="numeric"
+        value={form.amount}
+        onChangeText={(text) => handleChange('amount', text)}
+      />
+      <View style={styles.buttonContainer}>
+        <Button title={editId ? 'Update Budget' : 'Add Budget'} onPress={handleSubmit} />
+        <View style={{ width: 20 }} />
+        <Button title="Cancel" onPress={() => setCreateModalVisible(false)} color="red" />
+      </View>
+    </View>
+  </View>
+</Modal>
+
 
       {/* Header Row */}
       {budgets.length > 0 && (
@@ -264,6 +357,13 @@ const BudgetPlan = () => {
             <Text style={[styles.budgetText, styles.budgetCOP]}>{budget.center}</Text>
 
             <View style={styles.actions}>
+            <TouchableOpacity
+  onPress={() => openEditModal(budget)}
+  style={[styles.editButton, { marginRight: 5 }]} // Add space between edit and view
+>
+  <Icon name="edit" size={20} color="#fff" />
+</TouchableOpacity>
+
               <TouchableOpacity
                 onPress={() => navigation.navigate("BudgetDetails", {
                   selectedBudget: budget.name
@@ -273,10 +373,9 @@ const BudgetPlan = () => {
                 <Icon name="visibility" size={20} color="#fff" />
               </TouchableOpacity>
 
-<TouchableOpacity onPress={() => handleDownload(budget)} style={styles.downloadButton}>
-  <Icon name="file-download" size={20} color="#fff" />
-</TouchableOpacity>
-
+            <TouchableOpacity onPress={() => handleDownload(budget)} style={styles.downloadButton}>
+                <Icon name="file-download" size={20} color="#fff" />
+            </TouchableOpacity>
 
               <TouchableOpacity onPress={() => confirmDelete(budget.id)} style={styles.deleteButton}>
                 <Icon name="delete" size={20} color="#fff" />
@@ -378,6 +477,35 @@ const styles = StyleSheet.create({
   budgetPlans: { flex: 2, textAlign: 'left' },
   budgetDate: { flex: 1.5, textAlign: 'left' },
   budgetCOP: { flex: 1.5, textAlign: 'left' },
+
+  editButton: {
+    backgroundColor: '#FFA500',
+    padding: 8,
+    borderRadius: 5,
+    marginRight: 5, // 👈 Add margin here
+  },
+   
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+  },
+  
+  createButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  
+  createButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  
 });
 
 export default BudgetPlan;
