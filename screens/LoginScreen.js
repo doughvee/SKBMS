@@ -33,11 +33,10 @@ const LoginScreen = () => {
     <View style={styles.container}>
       {/* Logo */}
       <Image
-        source={require('../assets/images/logo.png')} // Make sure the path is correct
+        source={require('../assets/images/logo.png')} 
         style={styles.logo}
       />
 
-      {/* Login Inputs */}
       <TextInput
         style={styles.input}
         placeholder="Username"
@@ -53,10 +52,8 @@ const LoginScreen = () => {
         secureTextEntry
       />
 
-      {/* Error Message */}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      {/* Login Button */}
       <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
         <Text style={styles.loginText}>Login</Text>
       </TouchableOpacity>

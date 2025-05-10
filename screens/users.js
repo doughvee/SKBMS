@@ -114,12 +114,12 @@ const Users = () => {
 
   const handleCancel = () => {
     resetFields();
-    setModalVisible(false); // Close modal without saving
+    setModalVisible(false); 
   };
 
   return (
     <View style={styles.container}>
-      {/* Keep 'Add User' button always visible */}
+
       <View style={styles.header}>
         <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.createButton}>
           <Text style={styles.createButtonText}>Add User</Text>
@@ -146,7 +146,6 @@ const Users = () => {
         )}
       />
 
-      {/* Create/Edit User Modal */}
       <Modal transparent={true} animationType="fade" visible={modalVisible} onRequestClose={handleCancel}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -193,7 +192,6 @@ const Users = () => {
         </View>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       <Modal transparent={true} animationType="fade" visible={isConfirmDeleteModalVisible} onRequestClose={() => setConfirmDeleteModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -253,15 +251,15 @@ const styles = StyleSheet.create({
   modalButtonText: { color: "#fff", fontWeight: "bold", textAlign: "center" },
   modalButtonContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',  // Center the buttons horizontally
-    marginTop: 10,             // Optional: gives some space above the buttons
+    justifyContent: 'center', 
+    marginTop: 10,             
   },
   modalButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 5,
-    minWidth: 120,       // Minimum width for better fit
-    marginHorizontal: 5, // Space between buttons
+    minWidth: 120,       
+    marginHorizontal: 5, 
   },
 });
 

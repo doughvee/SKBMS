@@ -86,7 +86,6 @@ const BudgetDetails = () => {
       setTotalBudget(totalBudgetAmount);
       setRemaining(totalBudgetAmount - totalSpent);
 
-      // Save the spent amount in localStorage (or globally)
       const savedBudgets = JSON.parse(localStorage.getItem('budgets')) || [];
       const updatedBudgets = savedBudgets.map((budget) =>
         budget.name === budgetName ? { ...budget, spent: totalSpent } : budget

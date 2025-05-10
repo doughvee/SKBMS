@@ -10,7 +10,7 @@ import Dashboard from './screens/dashboard';
 import Users from './screens/users';
 import BudgetDetails from './screens/budgetdetails';
 import Notification from './screens/notification';
-import LoginScreen from './screens/LoginScreen'; // ✅ import Login
+import LoginScreen from './screens/LoginScreen';
 import 'react-native-url-polyfill/auto';
 import 'react-native-get-random-values';
 
@@ -19,7 +19,6 @@ const Stack = createStackNavigator();
 export default function App() {
   return (
     <View style={styles.container}>
-      {/* Header at the Top */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>SANGGUNIANG KABATAAN</Text>
         <Text style={styles.headerSubtitle}>BUDGET MONITORING DASHBOARD</Text>

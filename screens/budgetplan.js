@@ -3,6 +3,9 @@ import { View, Text, TextInput, Button, ScrollView, StyleSheet, TouchableOpacity
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import supabase from '../supabaseClient';
 import { useNavigation } from '@react-navigation/native';
+import { PDFDocument, PDFPage } from 'react-native-pdf-lib';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 
 
@@ -58,61 +61,6 @@ const BudgetPlan = () => {
     setErrors({ ...errors, [name]: false });
   };
 
-  // const handleSubmit = async () => {
-  //   let newErrors = {
-  //     name: !form.name.trim(),
-  //     center: !form.center,
-  //     amount: !form.amount.trim()
-  //   };
-  //   setErrors(newErrors);
-
-  //   if (newErrors.name || newErrors.center || newErrors.amount) {
-  //     setModalMessage('Please fill in all required fields before proceeding.');
-  //     setErrorModalVisible(true);
-  //     return;
-  //   }
-
-  //   const newBudget = {
-  //     name: form.name,
-  //     center: form.center,
-  //     amount: parseFloat(form.amount.replace(/,/g, '')),
-  //     date_created: new Date().toISOString(),
-  //   };
-
-  //   try {
-  //     if (editId !== null) {
-  //       const { error } = await supabase
-  //         .from('budget_plans')
-  //         .update(newBudget)
-  //         .eq('id', editId);
-      
-  //       if (error) throw error;
-      
-  //       setBudgets(budgets.map(b => (b.id === editId ? { ...b, ...newBudget } : b)));
-  //       setEditId(null);
-  //       setCreateModalVisible(false); // <-- close modal after editing
-  //     } else {
-  //       const { data, error } = await supabase
-  //         .from('budget_plans')
-  //         .insert([newBudget])
-  //         .select();
-      
-  //       if (error) throw error;
-      
-  //       setBudgets([...budgets, ...data]);
-  //       setModalMessage('Budget plan successfully added!');
-  //       setErrorModalVisible(true);
-  //     }      
-  //   } catch (error) {
-  //     console.error('Error saving budget:', error.message);
-  //     setModalMessage('An error occurred while saving the budget.');
-  //     setErrorModalVisible(true);
-  //   }
-
-  //   setForm({ name: '', center: '', amount: '' });
-  //   setShowForm(false);
-  // };
-
   const handleSubmit = async () => {
     let newErrors = {
       name: !form.name.trim(),
@@ -136,7 +84,6 @@ const BudgetPlan = () => {
   
     try {
       if (editId !== null) {
-        // Edit existing budget
         const { error } = await supabase
           .from('budget_plans')
           .update(newBudget)
@@ -146,9 +93,8 @@ const BudgetPlan = () => {
   
         setBudgets(budgets.map((b) => (b.id === editId ? { ...b, ...newBudget } : b)));
         setEditId(null);
-        setCreateModalVisible(false); // Close modal after editing
+        setCreateModalVisible(false); 
       } else {
-        // Create new budget
         const { data, error } = await supabase
           .from('budget_plans')
           .insert([newBudget])
@@ -182,81 +128,69 @@ const BudgetPlan = () => {
   
   const openCreateModal = () => {
     setForm({ name: '', center: '', amount: '' });
-    setEditId(null);  // Ensure editId is null when creating a new budget
+    setEditId(null);  
     setCreateModalVisible(true);
   };
   
   const handleDownload = async (budget) => {
     try {
-      // Helper: Clean text from non-UTF-8 characters
-      const cleanText = (text) =>
-        (text || '')
-          .normalize('NFKD')                       // Normalize Unicode
-          .replace(/[^\x00-\x7F]/g, '')            // Remove non-UTF-8
-          .replace(/[\r\n]+/g, ' ')                // Remove line breaks
-          .replace(/"/g, '""');                    // Escape double quotes
-  
-      // Helper: Format currency with ₱ and commas
-      const formatPeso = (amount) =>
-        `"₱${Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}"`;
-  
-      // Fetch receipt items
       const { data: receipts, error } = await supabase
         .from('receipt_items')
         .select('*')
         .eq('budget_name', budget.name);
   
-      if (error) {
-        console.error('Error fetching receipt items:', error.message);
-        setModalMessage('Failed to fetch receipt items for download.');
-        setErrorModalVisible(true);
-        return;
-      }
+      if (error) throw error;
   
-      // CSV Headers
-      const csvHeaders = [
-        'Item Name', 'Quantity', 'Unit Price', 'Total Amount'
+      const formatPeso = (amount) =>
+        `₱${Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+  
+      // Create the PDF page content
+      const lines = [
+        `Budget Plan Details`,
+        `Name: ${budget.name}`,
+        `Center: ${budget.center}`,
+        `Total: ${formatPeso(budget.amount)}`,
+        `Created: ${new Date(budget.date_created).toLocaleString()}`,
+        '',
+        `Receipt Items:`,
       ];
   
-      // CSV Content
-      const csvRows = [
-        ['Budget Name', 'Center', 'Total Budget', 'Date Created'],
-        [
-          `"${cleanText(budget.name)}"`,
-          `"${cleanText(budget.center)}"`,
-          formatPeso(budget.amount),
-          `"${new Date(budget.date_created).toLocaleString()}"`
-        ],
-        [],
-        csvHeaders,
-        ...receipts.map(item => [
-          `"${cleanText(item.item_name)}"`,
-          item.quantity || '',
-          formatPeso(item.unit_price || 0),
-          formatPeso(item.total_amount || 0),
-        ])
-      ];
+      receipts.forEach((item, i) => {
+        lines.push(
+          `${i + 1}. ${item.item_name} | Qty: ${item.quantity} | Unit: ${formatPeso(item.unit_price)} | Total: ${formatPeso(item.total_amount)}`
+        );
+      });
   
-      const csvContent = csvRows.map(row => row.join(',')).join('\n');
+      const page1 = PDFPage
+        .create()
+        .setMediaBox(600, 800);
   
-      // Create and download CSV
-      const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // UTF-8 BOM
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${cleanText(budget.name).replace(/\s+/g, '_').toLowerCase()}_details.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      lines.forEach((line, idx) => {
+        page1.drawText(line, {
+          x: 20,
+          y: 780 - idx * 20,
+          color: '#000000',
+          fontSize: 12,
+        });
+      });
+  
+      const docsDir = FileSystem.documentDirectory;
+      const pdfPath = `${docsDir}budget_plan_${budget.name.replace(/\s+/g, '_')}.pdf`;
+  
+      const pdf = await PDFDocument
+        .create(pdfPath)
+        .addPages(page1)
+        .write(); // Returns a promise that resolves with the PDF's path
+  
+      await Sharing.shareAsync(pdfPath);
     } catch (err) {
-      console.error('Unexpected error:', err);
-      setModalMessage('An unexpected error occurred while downloading.');
+      console.error('PDF Download Error:', err);
+      setModalMessage('An error occurred while generating the PDF.');
       setErrorModalVisible(true);
     }
   };
-
-
+  
+  
   const confirmDelete = (id) => {
     setDeleteId(id);
     setModalMessage('Are you sure you want to delete this budget?');
@@ -291,7 +225,7 @@ const BudgetPlan = () => {
   return (
     <View style={styles.container}>
 <View style={styles.header}>
-  <Text style={styles.title}>Budget Plans</Text>
+  <Text style={styles.title}>ANNUAL BARANGAY YOUTH INVESTMENT PROGRAM</Text>
   <TouchableOpacity onPress={openCreateModal} style={styles.createButton}>
   <Text style={styles.createButtonText}>Create</Text>
 </TouchableOpacity>
@@ -303,10 +237,10 @@ const BudgetPlan = () => {
       <Modal transparent={true} animationType="slide" visible={isCreateModalVisible} onRequestClose={() => setCreateModalVisible(false)}>
   <View style={styles.modalOverlay}>
     <View style={styles.modalContent}>
-      <Text style={styles.modalTitle}>{editId ? 'Edit Budget Plan' : 'Create Budget Plan'}</Text>
+      <Text style={styles.modalTitle}>{editId ? 'Edit Budget Plan' : 'Create'}</Text>
       <TextInput
         style={[styles.input, errors.name && styles.errorBorder]}
-        placeholder="Budget Name"
+        placeholder="PROGRAM / PROJECT / ACTIVITY"
         value={form.name}
         onChangeText={(text) => handleChange('name', text)}
       />
@@ -315,20 +249,20 @@ const BudgetPlan = () => {
         style={[styles.input, errors.center && styles.errorBorder]}
         onValueChange={(itemValue) => handleChange('center', itemValue)}
       >
-        <Picker.Item label="Select Center of Participation" value="" />
+        <Picker.Item label="SELECT CENTER OF PARTICIPATION" value="" />
         {centers.map((center, index) => (
           <Picker.Item key={index} label={center} value={center} />
         ))}
       </Picker>
       <TextInput
         style={[styles.input, errors.amount && styles.errorBorder]}
-        placeholder="Amount"
+        placeholder="AMOUNT"
         keyboardType="numeric"
         value={form.amount}
         onChangeText={(text) => handleChange('amount', text)}
       />
       <View style={styles.buttonContainer}>
-        <Button title={editId ? 'Update Budget' : 'Add Budget'} onPress={handleSubmit} />
+        <Button title={editId ? 'Update Budget' : 'Create'} onPress={handleSubmit} />
         <View style={{ width: 20 }} />
         <Button title="Cancel" onPress={() => setCreateModalVisible(false)} color="red" />
       </View>
@@ -340,8 +274,8 @@ const BudgetPlan = () => {
       {/* Header Row */}
       {budgets.length > 0 && (
         <View style={styles.identifierRow}>
-          <Text style={[styles.identifierText, styles.identifierPlans]}>Plans</Text>
-          <Text style={[styles.identifierText, styles.identifierDate]}>Date</Text>
+          <Text style={[styles.identifierText, styles.identifierPlans]}>PROGRAM / PROJECT / ACTIVITY</Text>
+          <Text style={[styles.identifierText, styles.identifierDate]}>DATE</Text>
           <Text style={[styles.identifierText, styles.identifierCOP]}>COP</Text>
         </View>
       )}
@@ -359,7 +293,7 @@ const BudgetPlan = () => {
             <View style={styles.actions}>
             <TouchableOpacity
   onPress={() => openEditModal(budget)}
-  style={[styles.editButton, { marginRight: 5 }]} // Add space between edit and view
+  style={[styles.editButton, { marginRight: 5 }]} 
 >
   <Icon name="edit" size={20} color="#fff" />
 </TouchableOpacity>
@@ -482,7 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFA500',
     padding: 8,
     borderRadius: 5,
-    marginRight: 5, // 👈 Add margin here
+    marginRight: 5, 
   },
    
   header: {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
-import Navigation from './navigation'; // Sidebar
+import Navigation from './navigation'; 
 import BudgetPlan from '../screens/budgetplan';
 import Dashboard from '../screens/dashboard';
 import Users from './users';
@@ -21,7 +21,6 @@ console.log(Stack.Screen);
 function ScreenWithSidebar({ children }) {
   return (
     <View style={{ flex: 1, flexDirection: 'row' }}>
-      {/* Sidebar (Persistent) */}
       <Navigation />
 
       {/* Main Content Area */}
