@@ -3,9 +3,8 @@ import { View, Text, TextInput, Button, ScrollView, StyleSheet, TouchableOpacity
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import supabase from '../supabaseClient';
 import { useNavigation } from '@react-navigation/native';
-import { PDFDocument, PDFPage } from 'react-native-pdf-lib';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 
 
@@ -44,6 +43,21 @@ const BudgetPlan = () => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }
   }, [budgets]);
+
+  const [receiptItems, setReceiptItems] = useState([]);
+
+useEffect(() => {
+  const fetchReceiptItems = async () => {
+    const { data, error } = await supabase.from('receipt_items').select('*');
+    if (error) {
+      console.error('Error fetching receipt items:', error);
+    } else {
+      setReceiptItems(data);
+    }
+  };
+
+  fetchReceiptItems();
+}, []);
 
   const handleChange = (name, value) => {
     if (name === 'amount') {
@@ -132,64 +146,28 @@ const BudgetPlan = () => {
     setCreateModalVisible(true);
   };
   
-  const handleDownload = async (budget) => {
-    try {
-      const { data: receipts, error } = await supabase
-        .from('receipt_items')
-        .select('*')
-        .eq('budget_name', budget.name);
-  
-      if (error) throw error;
-  
-      const formatPeso = (amount) =>
-        `₱${Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-  
-      // Create the PDF page content
-      const lines = [
-        `Budget Plan Details`,
-        `Name: ${budget.name}`,
-        `Center: ${budget.center}`,
-        `Total: ${formatPeso(budget.amount)}`,
-        `Created: ${new Date(budget.date_created).toLocaleString()}`,
-        '',
-        `Receipt Items:`,
-      ];
-  
-      receipts.forEach((item, i) => {
-        lines.push(
-          `${i + 1}. ${item.item_name} | Qty: ${item.quantity} | Unit: ${formatPeso(item.unit_price)} | Total: ${formatPeso(item.total_amount)}`
-        );
-      });
-  
-      const page1 = PDFPage
-        .create()
-        .setMediaBox(600, 800);
-  
-      lines.forEach((line, idx) => {
-        page1.drawText(line, {
-          x: 20,
-          y: 780 - idx * 20,
-          color: '#000000',
-          fontSize: 12,
-        });
-      });
-  
-      const docsDir = FileSystem.documentDirectory;
-      const pdfPath = `${docsDir}budget_plan_${budget.name.replace(/\s+/g, '_')}.pdf`;
-  
-      const pdf = await PDFDocument
-        .create(pdfPath)
-        .addPages(page1)
-        .write(); // Returns a promise that resolves with the PDF's path
-  
-      await Sharing.shareAsync(pdfPath);
-    } catch (err) {
-      console.error('PDF Download Error:', err);
-      setModalMessage('An error occurred while generating the PDF.');
-      setErrorModalVisible(true);
-    }
-  };
-  
+
+const handleDownload = (budget) => {
+  const doc = new jsPDF();
+  const budgetName = budget?.name || 'receipt_data'; // use 'budget.name' directly
+
+  doc.setFontSize(18);
+  doc.text(`${budgetName}`, 14, 22);
+
+  autoTable(doc, {
+    startY: 30,
+    head: [['Item Name', 'Quantity', 'Unit Price', 'Total Amount']],
+    body: receiptItems.map(item => [
+      item.item_name || 'N/A',
+      item.quantity || 0,
+      `${item.unit_price?.toFixed(2) || '0.00'}`,
+      `${item.total_amount?.toFixed(2) || '0.00'}`,
+    ]),
+  });
+
+  doc.save(`${budgetName}.pdf`);
+};
+
   
   const confirmDelete = (id) => {
     setDeleteId(id);
